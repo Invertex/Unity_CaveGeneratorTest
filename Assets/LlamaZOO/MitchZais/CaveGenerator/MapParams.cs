@@ -10,6 +10,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
         public int seed;
         public int width, height;
         public int refinementSteps;
+        public int subdivs;
         public float density;
         
         public void GenerateNewSeed()
@@ -17,13 +18,14 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             this.seed = Random.Range(int.MinValue, int.MaxValue);
         }
 
-        public MapParams(int seed, int width, int height, float density, int refinementSteps)
+        public MapParams(int seed, int width, int height, float density, int refinementSteps, int subdivisions)
         {
             this.seed = seed;
             this.width = width;
             this.height = height;
             this.density = density;
             this.refinementSteps = refinementSteps;
+            this.subdivs = subdivisions;
         }
 
         public MapParams()
@@ -33,6 +35,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             this.height = 128;
             this.density = 0.58f;
             this.refinementSteps = 3;
+            this.subdivs = 2;
         }
     }
 }

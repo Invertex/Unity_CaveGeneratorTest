@@ -7,16 +7,16 @@ namespace LlamaZOO.MitchZais.CaveGenerator
     [System.Serializable]
     public class MapPattern
     {
-        public CellType[,] map;
+        private CellType[,] map;
         private MapParams mapParams;
 
-        public int Width { get { return (mapParams != null) ? mapParams.width : 0; } }
-        public int Height { get { return (mapParams != null) ? mapParams.height : 0; } }
+        public int Width { get { return (map != null) ? map.GetLength(1) : 0; } }
+        public int Height { get { return (map != null) ? map.GetLength(0) : 0; } }
 
-        public MapPattern(int width, int height, float density = 0.5f, int refinementSteps = 3, int seed = -1)
+        public MapPattern(int width, int height, int seed = -1, float density = 0.5f, int refinementSteps = 3, int subdivisions = 2)
         {
             if (seed == -1) { seed = Random.Range(int.MinValue, int.MaxValue); }
-            mapParams = new MapParams(seed, width, height, density, refinementSteps);
+            mapParams = new MapParams(seed, width, height, density, refinementSteps, subdivisions);
         }
         public MapPattern(MapParams saveData) { this.mapParams = saveData; }
         
@@ -24,8 +24,10 @@ namespace LlamaZOO.MitchZais.CaveGenerator
         {
             Random.InitState(mapParams.seed);
             map = new CellType[mapParams.height, mapParams.width]; //y,x order for proper contigious mapping to 2D space
+
             RandomFill(map, mapParams.density);
             RefineWalls(map, mapParams.refinementSteps);
+            SubdivideMapWithRefinement(mapParams.subdivs);
         }
 
         private void RandomFill(CellType[,] map, float density)
@@ -74,6 +76,55 @@ namespace LlamaZOO.MitchZais.CaveGenerator
                 }
             }
             return found;
+        }
+
+        private void SubdivideMapWithRefinement(int subdivisions)
+        {
+            for(int i = 0; i < subdivisions; i++)
+            {
+                map = GetSubdividedMap(1);
+                RefineWalls(map, 2);
+            }
+        }
+
+        private CellType[,] GetSubdividedMap(int subdivisions)
+        {
+            int SubdividedSize(int val, int divisions)
+            {
+                for(int i = 0; i < divisions; i++)
+                {
+                    val *= 2;
+                }
+                return val;
+            }
+
+            int scaledWidth = SubdividedSize(Width, subdivisions);
+            int scaledHeight = SubdividedSize(Height, subdivisions);
+            int scaledIdxMult = SubdividedSize(1, subdivisions);
+
+            CellType[,] scaledMap = new CellType[scaledHeight, scaledWidth];
+
+            for(int y = 0; y < Height; y++)
+            {
+                for(int x = 0; x < Width; x++)
+                {
+                    CellType cell = map[y, x];
+
+                    int scaledYOffset = y * scaledIdxMult;
+
+                    for (int scaledY = scaledYOffset; scaledY < scaledYOffset + scaledIdxMult; scaledY ++)
+                    {
+                        int scaledXOffset = x * scaledIdxMult;
+
+                        for (int scaledX = scaledXOffset; scaledX < scaledXOffset + scaledIdxMult; scaledX++)
+                        {
+                            scaledMap[scaledY, scaledX] = cell;
+                        }
+                    }
+                }
+            }
+
+            return scaledMap;
         }
 
         public void ApplyMapToTexture2D(ref Texture2D tex)

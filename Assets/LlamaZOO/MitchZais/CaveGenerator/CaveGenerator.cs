@@ -68,7 +68,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
 
         public MapPattern GenerateCave(MapParams mapParams)
         {
-            MapPattern map = new MapPattern(mapParams.width, mapParams.height, mapParams.density, mapParams.refinementSteps, mapParams.seed);
+            MapPattern map = new MapPattern(mapParams.width, mapParams.height, mapParams.seed, mapParams.density, mapParams.refinementSteps, mapParams.subdivs);
             map.Generate();
 
             return map;
