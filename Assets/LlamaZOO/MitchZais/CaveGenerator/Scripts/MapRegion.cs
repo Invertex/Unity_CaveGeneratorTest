@@ -23,7 +23,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             if (updatePerimeter) { UpdatePerimeterValues(cells); }
         }
 
-        internal void AddRegions(Cell[,] cells, List<MapRegion> regions, bool updatePerimeter = true)
+        internal void AddRegions(Cell[,] cells, ICollection<MapRegion> regions, bool updatePerimeter = true)
         {
             if(regions == null || regions.Count == 0){ return; }
 
@@ -60,7 +60,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
                                     foundRegionCnt += 1;
                                     alreadyFound.Add((sampledCell.cellType, sampledCell.regionNum));
 
-                                    if(foundRegionCnt <= maxReturnedRegions) { return touchingRegions; }
+                                    if(foundRegionCnt >= maxReturnedRegions) { return touchingRegions; }
                                 }
                             }
                         }

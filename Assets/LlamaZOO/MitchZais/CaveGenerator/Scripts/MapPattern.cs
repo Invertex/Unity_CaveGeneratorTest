@@ -138,56 +138,80 @@ namespace LlamaZOO.MitchZais.CaveGenerator
 
         private void RemoveUndersizedRegions(Cell[,] map, MapParams mapParams)
         {
-            var undersizedRoomRegions = GetRegionsUnderSize(CellType.Floor, SubdividedSize(mapParams.smallestRoomArea, mapParams.TotalSubdivisions));
-            var undersizedWallRegions = GetRegionsUnderSize(CellType.Wall, SubdividedSize(mapParams.smallestWallArea, mapParams.TotalSubdivisions));
-
-            var pendingRegionMerges = new Dictionary<MapRegion, List<MapRegion>>();
-
-            ConstructRegionMerges(undersizedWallRegions.removedRegions);
-            ConstructRegionMerges(undersizedRoomRegions.removedRegions);
-
-                void ConstructRegionMerges(IEnumerable<MapRegion> regions)
+            Dictionary<MapRegion, HashSet<MapRegion>> ConstructRegionMerges(IEnumerable<MapRegion> regions, bool removeEnclosedRegions = false)
+            {
+                var merges = new Dictionary<MapRegion, HashSet<MapRegion>>();
+                
+                foreach (MapRegion undersizedRegion in regions)
                 {
-                    foreach (MapRegion region in regions)
-                    {
-                        var touchingRegion = region.FindTouchingRegions(this, 1);
+                    var touchingRegions = undersizedRegion.FindTouchingRegions(this, removeEnclosedRegions ? 20 : 3);
 
-                        if (touchingRegion.Count > 0)
+                    if (touchingRegions.Count > 0)
+                    {
+                        touchingRegions.Sort((a, b) => a.PerimeterCoords.Count.CompareTo(b.PerimeterCoords.Count));
+                        MapRegion largestTouchingRegion = touchingRegions[touchingRegions.Count - 1];
+                        HashSet<MapRegion> regionsToMerge;
+
+                        if (!merges.TryGetValue(largestTouchingRegion, out regionsToMerge))
                         {
-                            if (pendingRegionMerges.TryGetValue(touchingRegion[0], out List<MapRegion> touchingRegionPendingMerges))
+                            merges.Add(largestTouchingRegion, regionsToMerge = new HashSet<MapRegion>());
+                        }
+                        regionsToMerge.Add(undersizedRegion);
+
+                        if (removeEnclosedRegions)
+                        {
+                            for (int i = 0; i < touchingRegions.Count - 1; i++)
                             {
-                                touchingRegionPendingMerges.Add(region);
+                                //If the touching region has a bigger area and is also a different type, can't possibly be enclosed region
+                                if( touchingRegions[i].CellType != undersizedRegion.CellType 
+                                    && touchingRegions[i].Area < undersizedRegion.Area)
+                                {
+                                    Debug.Log(touchingRegions[i].CellType + ":" + touchingRegions[i].RegionNum);
+                                    regionsToMerge.Add(touchingRegions[i]);
+                                }
                             }
-                            else { pendingRegionMerges.Add(touchingRegion[0], new List<MapRegion>() { region }); }
                         }
                     }
                 }
-            
+                return merges;
+            }
+
+            void UpdateCellRegionNums(List<MapRegion> regions)
+            {
+                for (int i = 0; i < regions.Count; i++)
+                {
+                    regions[i].UpdateRegionNumber(map, i + 1);
+                }
+            }
+
+            void ProcessMerges<T>(Dictionary<MapRegion, T> merges) where T : ICollection<MapRegion>
+            {
+                foreach (var regionMerge in merges)
+                {
+                    regionMerge.Key.AddRegions(map, regionMerge.Value, false);
+                }
+            }
+        //Merge wall regions first as it may affect the area size of rooms 
+            var undersizedWallRegions = GetRegionsUnderSize(CellType.Wall, SubdividedSize(mapParams.smallestWallArea, mapParams.TotalSubdivisions));
+            var pendingWallMerges = ConstructRegionMerges(undersizedWallRegions.removedRegions);
             List<MapRegion> wallRegions = Regions[CellType.Wall];
-            List<MapRegion> floorRegions = Regions[CellType.Floor];
             wallRegions.Clear();
             wallRegions.AddRange(undersizedWallRegions.remainingRegions);
-            floorRegions.Clear();
-            floorRegions.AddRange(undersizedRoomRegions.remainingRegions);
-
             UpdateCellRegionNums(wallRegions);
+            ProcessMerges(pendingWallMerges);
+        //Merges room regions
+            var undersizedFloorRegions = GetRegionsUnderSize(CellType.Floor, SubdividedSize(mapParams.smallestRoomArea, mapParams.TotalSubdivisions));
+            var pendingFloorMerges = ConstructRegionMerges(undersizedFloorRegions.removedRegions, true); 
+            List<MapRegion> floorRegions = Regions[CellType.Floor];
+            floorRegions.Clear();
+            floorRegions.AddRange(undersizedFloorRegions.remainingRegions);
             UpdateCellRegionNums(floorRegions);
+            ProcessMerges(pendingFloorMerges);
 
-                void UpdateCellRegionNums(List<MapRegion> regions)
-                {
-                    for(int i = 0; i < regions.Count; i++)
-                    {
-                        regions[i].UpdateRegionNumber(map, i + 1);
-                    }
-                }
-
-            foreach (var regionMerge in pendingRegionMerges)
-            {
-                regionMerge.Key.AddRegions(map, regionMerge.Value, false);
-            }
             //We don't want to calculate new perimeters until all the existing cells have been merged otherwise perimeters can end up incorrect from old cell data
-            floorRegions.ForEach((region) => region.UpdatePerimeterValues(map));
+            
             wallRegions.ForEach((region) => region.UpdatePerimeterValues(map));
+            floorRegions.ForEach((region) => region.UpdatePerimeterValues(map));
         }
 
         private List<Vector2Int> GetFloodFillRegion(Cell[,] map, int y, int x, int newCellVal)
