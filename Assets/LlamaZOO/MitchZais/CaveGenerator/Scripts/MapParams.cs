@@ -1,41 +1,64 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace LlamaZOO.MitchZais.CaveGenerator
 {
+    /// <summary>
+    /// Only the essential data needed for reconstruction of the map.
+    /// </summary>
     [System.Serializable]
     public class MapParams
     {
         public int seed;
         public int width, height;
-        public int refinementSteps;
-        public int subdivs;
-        public float density;
-        
-        public void GenerateNewSeed()
+        [Range(0.3f, 1.0f)] public float fillDensity;
+
+        public RefinementStep[] refinementSteps;
+
+        public int TotalSubdivisions
         {
-            this.seed = Random.Range(int.MinValue, int.MaxValue);
+            get
+            {
+                int subdivs = 0;
+                foreach(var step in refinementSteps) { if(step.subdivideFirst){ subdivs++; } }
+                return subdivs;
+            }
         }
 
-        public MapParams(int seed, int width, int height, float density, int refinementSteps, int subdivisions)
+        [Header("Cleanup Parameters")]
+        public int smallestRoomArea;
+        public int smallestWallArea;
+
+        [System.Serializable]
+        public class RefinementStep
+        {
+            [Range(0, 20)] public int iterations;
+            [Range(1, 7)] public int roomLifeWeight;
+            [Range(1, 7)] public int roomDeathWeight;
+            public bool subdivideFirst;
+
+            public RefinementStep(int iterations = 1, int roomLifeWeight = 4, int roomDeathWeight = 4, bool subdivide = false)
+            {
+                this.iterations = Mathf.Clamp(iterations, 1, 20);
+                this.roomLifeWeight = Mathf.Clamp(roomLifeWeight, 1, 7);
+                this.roomDeathWeight = Mathf.Clamp(roomDeathWeight, 1, 7);
+                this.subdivideFirst = subdivide;
+            }
+        }
+
+        public int GenerateNewSeed()
+        {
+            return this.seed = Random.Range(int.MinValue, int.MaxValue);
+        }
+
+        public MapParams(int seed = 0, int width = 128, int height = 128, float density = 0.5f, int smallestRoomArea = 24, int smallestWallArea = 12, RefinementStep[] refinementSteps = null, int subdivisions = 0)
         {
             this.seed = seed;
             this.width = width;
             this.height = height;
-            this.density = density;
-            this.refinementSteps = refinementSteps;
-            this.subdivs = subdivisions;
-        }
-
-        public MapParams()
-        {
-            this.seed = System.Environment.TickCount; //Random.Range can't be called from MonoBehaviour constructor so this is used as a default
-            this.width = 128;
-            this.height = 128;
-            this.density = 0.58f;
-            this.refinementSteps = 3;
-            this.subdivs = 2;
+            this.fillDensity = density;
+            this.smallestRoomArea = smallestRoomArea;
+            this.smallestWallArea = smallestWallArea;
+            this.refinementSteps = refinementSteps == null ? new RefinementStep[]{new RefinementStep(5, 4, 4)} : refinementSteps;
         }
     }
 }

@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace LlamaZOO.MitchZais.CaveGenerator
 {
@@ -8,22 +6,31 @@ namespace LlamaZOO.MitchZais.CaveGenerator
     {  
         [SerializeField] private bool generateCave = false;
         [SerializeField] private bool generateNewSeedEachTime = false;
+        [SerializeField] private bool colorCodedRooms = false;
 
         [Header("Map Generation Parameters")]
         [SerializeField] private MapParams mapParams;
+        public MapPattern map;
 
         private Transform renderPlane;
         private Texture2D mapTex;
         private Material mapMaterial;
 
-        #if UNITY_EDITOR
+        private void Reset()
+        {
+            mapParams = new MapParams();
+        }
+
+
+#if UNITY_EDITOR
         void OnValidate()
         {
             //Processing MonoBehaviour types immedietly in OnValidate will throw warnings and potential errors
             //This delays it until Inspector updating is finished.
             UnityEditor.EditorApplication.delayCall += ProcessUIChange;
         }
-        #endif
+#endif
+        
         private void ProcessUIChange()
         {
             if (mapParams == null) { mapParams = new MapParams(); }
@@ -35,7 +42,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
                 GeneratePreviewPlane(mapParams.width, mapParams.height);
 
                 MapPattern map = GenerateCave(mapParams);
-                map.ApplyMapToTexture2D(ref mapTex);
+                map.ApplyMapToTexture2D(ref mapTex, colorCodedRooms);
             }
         }
 
@@ -57,8 +64,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             if(!mapMaterial) { mapMaterial = new Material(Shader.Find("Unlit/Texture")); }
             if(!mapTex)
             {
-                mapTex = new Texture2D(width, height);
-                mapTex.filterMode = FilterMode.Point;
+                mapTex = new Texture2D(width, height) { filterMode = FilterMode.Point };
             }
 
             mapMaterial.mainTexture = mapTex;
@@ -68,7 +74,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
 
         public MapPattern GenerateCave(MapParams mapParams)
         {
-            MapPattern map = new MapPattern(mapParams.width, mapParams.height, mapParams.seed, mapParams.density, mapParams.refinementSteps, mapParams.subdivs);
+            map = new MapPattern(mapParams);
             map.Generate();
 
             return map;
