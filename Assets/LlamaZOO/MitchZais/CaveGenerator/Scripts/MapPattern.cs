@@ -1,29 +1,52 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using UnityEngine;
+using System.Linq;
+using System.Diagnostics;
 
 namespace LlamaZOO.MitchZais.CaveGenerator
 {
     [System.Serializable]
     public class MapPattern
     {
-        public Cell[,] Map { get; private set; }
+        public Cell[,] Cells { get; private set; }
         public MapParams MapParams { get; private set; }
         public Dictionary<CellType, List<MapRegion>> Regions { get; private set; }
+        public List<MapRegion> Rooms
+        { 
+            get
+            {
+                List<MapRegion> rooms;
+                if (!Regions.TryGetValue(CellType.Floor, out rooms)) { Rooms = rooms = new List<MapRegion>(); }
+            
+                return rooms;
+            }
+            set
+            {
+                if (!Regions.ContainsKey(CellType.Floor)) { Regions.Add(CellType.Floor, value); }
+                else { Regions[CellType.Floor] = value; }
+            }
+        }
 
-        public int Width { get { return (Map != null) ? Map.GetLength(1) : 0; } }
-        public int Height { get { return (Map != null) ? Map.GetLength(0) : 0; } }
+        public MapRegion SpawnRoom { get; private set; }
+
+        private float subdivPositionMultiplier = 1;
+        public int Width { get { return  Cells.GetLength(1); } }
+        public int Height { get { return  Cells.GetLength(0); } }
 
         public void Generate()
         {
-            Random.InitState(MapParams.seed);
-            Map = new Cell[MapParams.height, MapParams.width]; //y,x order for proper contigious mapping to 2D space
+            UnityEngine.Random.InitState(MapParams.seed);
+            Cells = new Cell[MapParams.height, MapParams.width]; //y,x order for proper contigious mapping to 2D space
 
-            RandomFill(Map, MapParams.fillDensity);
-            Map = RefineWalls(Map, MapParams.refinementSteps);
+            RandomFill(Cells, MapParams.fillDensity);
+            Cells = RefineWalls(Cells, MapParams.refinementSteps);
             GenerateRegionLists();
-            RemoveUndersizedRegions(Map, MapParams);
+            RemoveUndersizedRegions(Cells, MapParams);
+            BuildClosestPointsData();
+            ConnectRoomsToClosestRoom();
+            SpawnRoom = Rooms[Random.Range(0, Rooms.Count)];
+            EnsureAllRegionsReachable();
         }
 
         private void RandomFill(Cell[,] map, float density)
@@ -33,7 +56,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             {
                 for (int x = 1; x < Width - 1; x++)
                 {
-                    map[y, x] = (Random.value < density) ? new Cell(CellType.Floor) : new Cell(CellType.Wall);
+                    map[y, x] = (UnityEngine.Random.value < density) ? new Cell(CellType.Floor) : new Cell(CellType.Wall);
                 }
             }
         }
@@ -55,7 +78,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
                         for (int x = 1; x < mapWidth - 1; x++)
                         {
                             Cell targetCell = map[y, x];
-                            int neighborFloorCells = GetSurroundingCellCount(map, new Vector2Int(x, y), 1, CellType.Floor);
+                            int neighborFloorCells = map.GetSurroundingCellCount(new Vector2Int(x, y), 1, CellType.Floor);
 
                             if (targetCell != CellType.Wall && neighborFloorCells < step.roomDeathWeight)
                             {
@@ -91,23 +114,62 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             {
                 for(int x = 1; x < Width - 1; x++)
                 {
-                    Cell curCell = Map[y, x];
+                    Cell curCell = Cells[y, x];
 
                     if (curCell.regionNum == Cell.DefaultRegionNum)
                     {
                         if (curCell == CellType.Floor)
                         {
-                            rooms.Add( new MapRegion(Map, GetFloodFillRegion(Map, y, x, foundFloorRegions), CellType.Floor, foundFloorRegions) );
+                            rooms.Add( new MapRegion(Cells, GetFloodFillRegion(Cells, y, x, foundFloorRegions), CellType.Floor, foundFloorRegions) );
                             foundFloorRegions++;
                         }
                         else if (curCell == CellType.Wall)
                         {
-                            wallRegions.Add( new MapRegion(Map, GetFloodFillRegion(Map, y, x, foundWallRegions), CellType.Wall, foundWallRegions) );
+                            wallRegions.Add( new MapRegion(Cells, GetFloodFillRegion(Cells, y, x, foundWallRegions), CellType.Wall, foundWallRegions) );
                             foundWallRegions++;
                         }
                     }
                 }
             }
+        }
+
+        private HashSet<Vector2Int> GetFloodFillRegion(Cell[,] map, int y, int x, int newCellVal)
+        {
+            Stack<Vector2Int> cellsToCheck = new Stack<Vector2Int>();
+            HashSet<Vector2Int> alteredCells = new HashSet<Vector2Int>();
+
+            int targetRegionNum = map[y, x].regionNum;
+            CellType targetRegionType = map[y, x];
+
+            cellsToCheck.Push(new Vector2Int(x, y));
+
+            while (cellsToCheck.Count > 0)
+            {
+                var cellCoord = cellsToCheck.Pop();
+
+                if (map.IsOutsideMap(cellCoord)) { continue; }
+                Cell sampledCell = map[cellCoord.y, cellCoord.x];
+
+                if (sampledCell == targetRegionType && sampledCell.regionNum == targetRegionNum)
+                {
+                    map[cellCoord.y, cellCoord.x].regionNum = newCellVal;
+                    alteredCells.Add(cellCoord);
+
+                    cellsToCheck.Push(new Vector2Int(cellCoord.x - 1, cellCoord.y - 1));
+                    cellsToCheck.Push(new Vector2Int(cellCoord.x, cellCoord.y - 1));
+                    cellsToCheck.Push(new Vector2Int(cellCoord.x + 1, cellCoord.y - 1));
+
+                    cellsToCheck.Push(new Vector2Int(cellCoord.x - 1, cellCoord.y));
+                    cellsToCheck.Push(new Vector2Int(cellCoord.x + 1, cellCoord.y));
+
+
+                    cellsToCheck.Push(new Vector2Int(cellCoord.x - 1, cellCoord.y + 1));
+                    cellsToCheck.Push(new Vector2Int(cellCoord.x, cellCoord.y + 1));
+                    cellsToCheck.Push(new Vector2Int(cellCoord.x + 1, cellCoord.y + 1));
+                }
+            }
+
+            return alteredCells;
         }
 
         private (List<MapRegion> remainingRegions, List<MapRegion> removedRegions) GetRegionsUnderSize(CellType regionType, int area)
@@ -149,10 +211,10 @@ namespace LlamaZOO.MitchZais.CaveGenerator
                     if (touchingRegions.Count > 0)
                     {
                         touchingRegions.Sort((a, b) => a.PerimeterCoords.Count.CompareTo(b.PerimeterCoords.Count));
-                        MapRegion largestTouchingRegion = touchingRegions[touchingRegions.Count - 1];
-                        HashSet<MapRegion> regionsToMerge;
 
-                        if (!merges.TryGetValue(largestTouchingRegion, out regionsToMerge))
+                        MapRegion largestTouchingRegion = touchingRegions[touchingRegions.Count - 1];
+
+                        if (!merges.TryGetValue(largestTouchingRegion, out HashSet<MapRegion> regionsToMerge))
                         {
                             merges.Add(largestTouchingRegion, regionsToMerge = new HashSet<MapRegion>());
                         }
@@ -166,7 +228,6 @@ namespace LlamaZOO.MitchZais.CaveGenerator
                                 if( touchingRegions[i].CellType != undersizedRegion.CellType 
                                     && touchingRegions[i].Area < undersizedRegion.Area)
                                 {
-                                    Debug.Log(touchingRegions[i].CellType + ":" + touchingRegions[i].RegionNum);
                                     regionsToMerge.Add(touchingRegions[i]);
                                 }
                             }
@@ -191,7 +252,8 @@ namespace LlamaZOO.MitchZais.CaveGenerator
                     regionMerge.Key.AddRegions(map, regionMerge.Value, false);
                 }
             }
-        //Merge wall regions first as it may affect the area size of rooms 
+        
+            //Merge wall regions first as it may affect the area size of rooms 
             var undersizedWallRegions = GetRegionsUnderSize(CellType.Wall, SubdividedSize(mapParams.smallestWallArea, mapParams.TotalSubdivisions));
             var pendingWallMerges = ConstructRegionMerges(undersizedWallRegions.removedRegions);
             List<MapRegion> wallRegions = Regions[CellType.Wall];
@@ -199,7 +261,8 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             wallRegions.AddRange(undersizedWallRegions.remainingRegions);
             UpdateCellRegionNums(wallRegions);
             ProcessMerges(pendingWallMerges);
-        //Merges room regions
+        
+            //Merges room regions
             var undersizedFloorRegions = GetRegionsUnderSize(CellType.Floor, SubdividedSize(mapParams.smallestRoomArea, mapParams.TotalSubdivisions));
             var pendingFloorMerges = ConstructRegionMerges(undersizedFloorRegions.removedRegions, true); 
             List<MapRegion> floorRegions = Regions[CellType.Floor];
@@ -209,81 +272,12 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             ProcessMerges(pendingFloorMerges);
 
             //We don't want to calculate new perimeters until all the existing cells have been merged otherwise perimeters can end up incorrect from old cell data
-            
             wallRegions.ForEach((region) => region.UpdatePerimeterValues(map));
             floorRegions.ForEach((region) => region.UpdatePerimeterValues(map));
         }
 
-        private List<Vector2Int> GetFloodFillRegion(Cell[,] map, int y, int x, int newCellVal)
-        {
-            Stack<Vector2Int> cellsToCheck = new Stack<Vector2Int>();
-            List<Vector2Int> alteredCells = new List<Vector2Int>(Width * Height);
-
-            int targetRegionNum = map[y,x].regionNum;
-            CellType targetRegionType = map[y,x];
-
-            cellsToCheck.Push(new Vector2Int(x,y));
-
-            while(cellsToCheck.Count > 0)
-            {
-                var cellCoord = cellsToCheck.Pop();
-
-                if(IsOutsideMap(map, cellCoord)) { continue; }
-                Cell sampledCell = map[cellCoord.y, cellCoord.x];
-
-                if (sampledCell == targetRegionType && sampledCell.regionNum == targetRegionNum)
-                {
-                    map[cellCoord.y, cellCoord.x].regionNum = newCellVal;
-                    alteredCells.Add(cellCoord);
-
-                    cellsToCheck.Push(new Vector2Int(cellCoord.x - 1, cellCoord.y - 1));
-                    cellsToCheck.Push(new Vector2Int(cellCoord.x, cellCoord.y - 1));
-                    cellsToCheck.Push(new Vector2Int(cellCoord.x + 1, cellCoord.y - 1));
-
-                    cellsToCheck.Push(new Vector2Int(cellCoord.x - 1, cellCoord.y));
-                    cellsToCheck.Push(new Vector2Int(cellCoord.x + 1, cellCoord.y));
-
-
-                    cellsToCheck.Push(new Vector2Int(cellCoord.x - 1, cellCoord.y + 1));
-                    cellsToCheck.Push(new Vector2Int(cellCoord.x, cellCoord.y + 1));
-                    cellsToCheck.Push(new Vector2Int(cellCoord.x + 1, cellCoord.y + 1));
-                }
-            }
-
-            return alteredCells;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int GetSurroundingCellCount(Cell[,] map, Vector2Int coord, int radius, CellType matchCellType, bool outOfBoundsMatch = false) 
-        {
-            int found = 0;
-            
-            for(int y = coord.y - radius; y <= coord.y + radius; y++)
-            {
-                for (int x = coord.x - radius; x <= coord.x + radius; x++)
-                {
-                    if (x == coord.x && y == coord.y) { continue; }
-
-                    if(IsOutsideMap(map, new Vector2Int(x,y)))
-                    {
-                        if (outOfBoundsMatch) { found++; }
-                        continue;
-                    }
-
-                    if(map[y,x] == matchCellType) { found++; }
-                }
-            }
-            return found;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool IsOutsideMap(Cell[,] map, Vector2Int coord)
-        {
-            return (coord.y < 0 || coord.x < 0 || coord.y >= map.GetLength(0) || coord.x >= map.GetLength(1));
-        }
-
         /// <summary>
-        /// Multiplies value by 2 for each division
+        /// Doubles value for each division
         /// </summary>
         /// <param name="val"></param>
         /// <param name="divisions"></param>
@@ -293,7 +287,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
         {
             for (int i = 0; i < divisions; i++)
             {
-                val *= 2;
+                val += val;
             }
             return val;
         }
@@ -327,74 +321,152 @@ namespace LlamaZOO.MitchZais.CaveGenerator
                 }
             }
 
+            subdivPositionMultiplier = (float)MapParams.width / scaledMap.GetLength(1);
             return scaledMap;
         }
 
-        private void MergeScrapWallRegions()
+        private void BuildClosestPointsData()
         {
-            if (Regions.TryGetValue(CellType.Wall, out var wallRegions))
+            int roomCnt = Rooms.Count;
+
+            for(int a = 0; a < roomCnt - 1; a++)
             {
-                int keptWallRegionCnt = 0;
-                List<MapRegion> keptWallRegions = new List<MapRegion>(wallRegions.Count);
-
-                for (int i = 0; i < wallRegions.Count; i++)
+                for (int b = a + 1; b < roomCnt; b++)
                 {
-                    MapRegion wallRegion = wallRegions[i];
-                    MapRegion closestRegion = wallRegions[i].FindTouchingRegions(this,1)[0];
-
-                    if (closestRegion == null || closestRegion.CellType != wallRegion.CellType)
-                    {
-                        keptWallRegionCnt += 1;
-                        wallRegion.UpdateRegionNumber(Map, keptWallRegionCnt);
-                        keptWallRegions.Add(wallRegion);
-                    }
-                    else { closestRegion.AddRegion(Map, wallRegion); }
+                    var closestPoints = Rooms[a].FindClosestPointsBetweenRegions(Rooms[b]);
+                    Rooms[a].AddClosestCoordToRegion(Rooms[b], closestPoints.region1Coord, closestPoints.dist);
+                    Rooms[b].AddClosestCoordToRegion(Rooms[a], closestPoints.region2Coord, closestPoints.dist);
                 }
-                Regions[CellType.Wall] = keptWallRegions;
             }
         }
 
-        public void ApplyMapToTexture2D(ref Texture2D tex, bool colorCodedRooms = false)
+        private void ConnectRoomsToClosestRoom()
         {
-            int yLen = Height;
-            int xLen = Width;
-            float roomCount = (Regions != null) ? Regions[CellType.Floor].Count : 0;
-
-            if (tex == null) { tex = new Texture2D(xLen, yLen); }
-            else { tex.Resize(xLen, yLen); }
-
-            var textureBuffer = tex.GetRawTextureData<Color32>();
-            int pixelIdx = 0;
-
-            for (int y = 0; y < yLen; y++)
+            foreach(var room in Rooms)
             {
-                for (int x = 0; x < xLen; x++)
+                if(room.LinkedRegions.Count == 0)
                 {
-                    Cell cell = Map[y, x];
-                    Color pixelColor = (cell == CellType.Wall) ? Color.black : Color.white;
+                    var closestRoom = room.GetClosestRegion();
+                    var closestCoordOnOtherRoom = closestRoom.region.ClosestCoordToRegion[room].coord;
+                    int pathRadius = Random.Range(1, 2);
+                    CreatePathBetweenRegions(room, closestRoom.region, closestRoom.closestCoordTo, closestCoordOnOtherRoom, pathRadius);
+                }
+            }
+        }
 
-                    if (colorCodedRooms)
+        private void EnsureAllRegionsReachable()
+        {
+            foreach(var room in Rooms)
+            {
+                MapRegion searchFromRegion = room;
+                int loopCnt = 0;
+                HashSet<MapRegion> ignoredRegions = new HashSet<MapRegion>();
+
+                while (!searchFromRegion.IsReachableFromRegion(SpawnRoom) && loopCnt < 20)
+                {
+                    loopCnt++;
+
+                    var closestLink = searchFromRegion.GetUnlinkedRegionWithShortestDistanceBetween(SpawnRoom, ignoredRegions);
+                    searchFromRegion = closestLink.toRegion;
+
+                    if (closestLink.fromRegion != SpawnRoom)
                     {
-                        if (cell.edgeCell && cell == CellType.Wall)
-                        {
-                            pixelColor = new Color(0.2f, 0.2f, 0.2f);
-                        }
-                        else if (cell != CellType.Wall)
-                        {
-                            pixelColor = Color.HSVToRGB((float)cell.regionNum / roomCount, 1, cell.edgeCell ? 1f : 1, false);
-                        }
+                        Connect(closestLink.fromRegion, closestLink.toRegion);
                     }
-                    textureBuffer[pixelIdx++] = pixelColor;
+                   
+                    void Connect(MapRegion fromRegion, MapRegion toRegion)
+                    {
+                        var fromCoord = fromRegion.ClosestCoordToRegion[toRegion].coord;
+                        var toCoord = toRegion.ClosestCoordToRegion[fromRegion].coord;
+
+                        CreatePathBetweenRegions(fromRegion, toRegion, fromCoord, toCoord, Random.Range(1, 2));
+                    }
+                }
+            }
+        }
+
+        void CreatePathBetweenRegions(MapRegion region1, MapRegion region2, Vector2Int startCoord, Vector2Int endCoord, int radius)
+        {
+            radius *= MapParams.TotalSubdivisions;
+            region1.LinkRegion(region2);
+
+            List<Vector2Int> path = GetPathPoints(startCoord, endCoord);
+
+            int pointCount = path.Count;
+            int midPoint = Mathf.CeilToInt(pointCount / 2);
+
+            foreach (var coord in path.GetRange(0, midPoint))
+            {
+                region1.AddCellsInRadius(this, coord, radius);
+            }
+            
+            if(pointCount < 2){ return; } //Only one point to draw so can't split in two
+
+            //Split the pathway cell additions halfway, adding to other region so our rooms region data meet halfway
+            foreach (var coord in path.GetRange(midPoint, pointCount - midPoint))
+            {
+                region2.AddCellsInRadius(this, coord, radius);
+            }
+        }
+
+        List<Vector2Int> GetPathPoints(Vector2Int from, Vector2Int to)
+        {
+            List<Vector2Int> points = new List<Vector2Int>();
+
+            Vector2Int point = from;
+            Vector2Int delta = to - from;
+
+            int longest = Mathf.Abs(delta.x);
+            int shortest = Mathf.Abs(delta.y);
+
+            delta.x = System.Math.Sign(delta.x);
+            delta.y = System.Math.Sign(delta.y);
+
+            Vector2Int step = new Vector2Int(delta.x, 0);
+            Vector2Int gradStep = new Vector2Int(0, delta.y);
+
+            if (longest < shortest)
+            {
+                int swap = longest;
+                longest = shortest;
+                shortest = swap;
+
+                Vector2Int swapDelta = step;
+                step = gradStep;
+                gradStep = swapDelta;
+            }
+
+            int gradAccumulation = longest / 2;
+
+            for (int i = 0; i < longest; i++)
+            {
+                points.Add(point);
+
+                point += step;
+                gradAccumulation += shortest;
+
+                if (gradAccumulation >= longest)
+                {
+                    point += gradStep;
+                    gradAccumulation -= longest;
                 }
             }
 
-            tex.Apply();
+            return points;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        /// <summary>
+        /// Converts the Vector2Int Cell[,] coordinate to an object space Vector3 coordinate, taking map subdivisions into account.
+        /// </summary>
+        /// <param name="coord">Cell[,] coordinate</param>
+        /// <returns></returns>
+        internal Vector3 CoordToPos(Vector2Int coord) => new Vector3(coord.x * subdivPositionMultiplier, 0, coord.y * subdivPositionMultiplier);
 
         public MapPattern(MapParams saveData) { this.MapParams = saveData; }
         public MapPattern(int width, int height, int seed = -1, float density = 0.5f, int refinementSteps = 3, int subdivisions = 2)
         {
-            if (seed == -1) { seed = Random.Range(int.MinValue, int.MaxValue); }
+            if (seed == -1) { seed = UnityEngine.Random.Range(int.MinValue, int.MaxValue); }
             MapParams = new MapParams(seed, width, height, density, refinementSteps, subdivisions);
         }
     }

@@ -21,7 +21,6 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             mapParams = new MapParams();
         }
 
-
 #if UNITY_EDITOR
         void OnValidate()
         {
@@ -29,8 +28,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             //This delays it until Inspector updating is finished.
             UnityEditor.EditorApplication.delayCall += ProcessUIChange;
         }
-#endif
-        
+#endif   
         private void ProcessUIChange()
         {
             if (mapParams == null) { mapParams = new MapParams(); }
@@ -48,28 +46,28 @@ namespace LlamaZOO.MitchZais.CaveGenerator
 
         private void GeneratePreviewPlane(int width, int height)
         {
-            if (transform.childCount > 0)
+            for(int c = transform.childCount - 1; c >= 0; c--)
             {
-                renderPlane = transform.GetChild(0);
+                DestroyImmediate(transform.GetChild(c).gameObject);
             }
-            else
-            {
-                GameObject plane = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                renderPlane = plane.transform;
-                
-                renderPlane.name = "MapPreviewPlane";
-                renderPlane.SetParent(this.transform, false);
-                renderPlane.transform.eulerAngles = new Vector3(90, 0, 0);
-            }
-            if(!mapMaterial) { mapMaterial = new Material(Shader.Find("Unlit/Texture")); }
-            if(!mapTex)
+
+            if (!mapMaterial) { mapMaterial = new Material(Shader.Find("Unlit/Texture")); }
+            if (!mapTex)
             {
                 mapTex = new Texture2D(width, height) { filterMode = FilterMode.Point };
             }
 
             mapMaterial.mainTexture = mapTex;
-            renderPlane.GetComponent<Renderer>().material = mapMaterial;
+
+            GameObject plane = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            renderPlane = plane.transform;
+            renderPlane.name = "MapPreviewPlane";
+            renderPlane.SetParent(this.transform, false);
             renderPlane.localScale = new Vector3(width, height, 1);
+            renderPlane.localPosition = new Vector3(width * 0.5f, 0, height * 0.5f);
+            renderPlane.localEulerAngles = new Vector3(90, 0, 0);
+            renderPlane.GetComponent<Renderer>().material = mapMaterial;
+            plane.hideFlags = HideFlags.HideAndDontSave;
         }
 
         public MapPattern GenerateCave(MapParams mapParams)

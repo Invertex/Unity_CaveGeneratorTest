@@ -50,7 +50,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             return this.seed = Random.Range(int.MinValue, int.MaxValue);
         }
 
-        public MapParams(int seed = 0, int width = 128, int height = 128, float density = 0.5f, int smallestRoomArea = 24, int smallestWallArea = 12, RefinementStep[] refinementSteps = null, int subdivisions = 0)
+        public MapParams(int seed = 0, int width = 128, int height = 128, float density = 0.5f, int smallestRoomArea = 24, int smallestWallArea = 12, RefinementStep[] refinementSteps = null)
         {
             this.seed = seed;
             this.width = width;
