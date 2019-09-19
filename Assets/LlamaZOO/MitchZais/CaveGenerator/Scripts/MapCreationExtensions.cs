@@ -60,7 +60,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsOutsideMap(this MapPattern map, Vector2Int coord)
         {
-            return (coord.y < 0 || coord.x < 0 || coord.y >= map.Cells.GetLength(0) || coord.x >= map.Cells.GetLength(1));
+            return (coord.y < 0 || coord.x < 0 || coord.y >= map.Height || coord.x >= map.Width);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

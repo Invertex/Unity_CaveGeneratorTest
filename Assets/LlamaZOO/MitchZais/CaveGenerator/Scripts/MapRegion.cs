@@ -341,6 +341,10 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             PerimeterCoords = CalculatePerimeterCoordsForCellGroup(map, CellCoords, false);
         }
 
+        public string ToString(Vector2Int coord){
+            return this.ToString() + ":" + coord; 
+        }
+
         public override string ToString() => CellType + ":" + RegionNum;
         
         private void Initialize()

@@ -30,18 +30,27 @@ namespace LlamaZOO.MitchZais.CaveGenerator
 
         public MapRegion SpawnRoom { get; private set; }
 
-        private float subdivPositionMultiplier = 1;
+        public float SubdivPositionMultiplier { get; private set; }
         public int Width { get { return  Cells.GetLength(1); } }
         public int Height { get { return  Cells.GetLength(0); } }
+
+        public int WidthWS { get { return (int)(Width * SubdivPositionMultiplier); } }
+        public int HeightWS { get { return (int)(Height * SubdivPositionMultiplier); } }
 
         public void Generate()
         {
             UnityEngine.Random.InitState(MapParams.seed);
             Cells = new Cell[MapParams.height, MapParams.width]; //y,x order for proper contigious mapping to 2D space
+            SubdivPositionMultiplier = 1;
 
             RandomFill(Cells, MapParams.fillDensity);
             Cells = RefineWalls(Cells, MapParams.refinementSteps);
             GenerateRegionLists();
+            if(Rooms.Count == 0)
+            { 
+                UnityEngine.Debug.LogWarning("No rooms were generated, settings need to be adjusted, likely larger map size.");
+                return;
+            }
             RemoveUndersizedRegions(Cells, MapParams);
             BuildClosestPointsData();
             ConnectRoomsToClosestRoom();
@@ -155,17 +164,10 @@ namespace LlamaZOO.MitchZais.CaveGenerator
                     map[cellCoord.y, cellCoord.x].regionNum = newCellVal;
                     alteredCells.Add(cellCoord);
 
-                    cellsToCheck.Push(new Vector2Int(cellCoord.x - 1, cellCoord.y - 1));
                     cellsToCheck.Push(new Vector2Int(cellCoord.x, cellCoord.y - 1));
-                    cellsToCheck.Push(new Vector2Int(cellCoord.x + 1, cellCoord.y - 1));
-
                     cellsToCheck.Push(new Vector2Int(cellCoord.x - 1, cellCoord.y));
                     cellsToCheck.Push(new Vector2Int(cellCoord.x + 1, cellCoord.y));
-
-
-                    cellsToCheck.Push(new Vector2Int(cellCoord.x - 1, cellCoord.y + 1));
                     cellsToCheck.Push(new Vector2Int(cellCoord.x, cellCoord.y + 1));
-                    cellsToCheck.Push(new Vector2Int(cellCoord.x + 1, cellCoord.y + 1));
                 }
             }
 
@@ -321,7 +323,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
                 }
             }
 
-            subdivPositionMultiplier = (float)MapParams.width / scaledMap.GetLength(1);
+            SubdivPositionMultiplier = (float)MapParams.width / scaledMap.GetLength(1);
             return scaledMap;
         }
 
@@ -347,9 +349,12 @@ namespace LlamaZOO.MitchZais.CaveGenerator
                 if(room.LinkedRegions.Count == 0)
                 {
                     var closestRoom = room.GetClosestRegion();
-                    var closestCoordOnOtherRoom = closestRoom.region.ClosestCoordToRegion[room].coord;
-                    int pathRadius = Random.Range(1, 2);
-                    CreatePathBetweenRegions(room, closestRoom.region, closestRoom.closestCoordTo, closestCoordOnOtherRoom, pathRadius);
+                    if (closestRoom.region != null)
+                    {
+                        var closestCoordOnOtherRoom = closestRoom.region.ClosestCoordToRegion[room].coord;
+                        int pathRadius = Random.Range(1, 2);
+                        CreatePathBetweenRegions(room, closestRoom.region, closestRoom.closestCoordTo, closestCoordOnOtherRoom, pathRadius);
+                    }
                 }
             }
         }
@@ -358,8 +363,9 @@ namespace LlamaZOO.MitchZais.CaveGenerator
         {
             foreach(var room in Rooms)
             {
-                MapRegion searchFromRegion = room;
+                
                 int loopCnt = 0;
+                MapRegion searchFromRegion = room;
                 HashSet<MapRegion> ignoredRegions = new HashSet<MapRegion>();
 
                 while (!searchFromRegion.IsReachableFromRegion(SpawnRoom) && loopCnt < 20)
@@ -379,7 +385,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
                         var fromCoord = fromRegion.ClosestCoordToRegion[toRegion].coord;
                         var toCoord = toRegion.ClosestCoordToRegion[fromRegion].coord;
 
-                        CreatePathBetweenRegions(fromRegion, toRegion, fromCoord, toCoord, Random.Range(1, 2));
+                        CreatePathBetweenRegions(fromRegion, toRegion, fromCoord, toCoord, Random.Range(1, 3));
                     }
                 }
             }
@@ -387,13 +393,13 @@ namespace LlamaZOO.MitchZais.CaveGenerator
 
         void CreatePathBetweenRegions(MapRegion region1, MapRegion region2, Vector2Int startCoord, Vector2Int endCoord, int radius)
         {
-            radius *= MapParams.TotalSubdivisions;
+            radius = SubdividedSize(radius, MapParams.TotalSubdivisions);
             region1.LinkRegion(region2);
 
             List<Vector2Int> path = GetPathPoints(startCoord, endCoord);
 
             int pointCount = path.Count;
-            int midPoint = Mathf.CeilToInt(pointCount / 2);
+            int midPoint = Mathf.CeilToInt(pointCount / 2f);
 
             foreach (var coord in path.GetRange(0, midPoint))
             {
@@ -461,13 +467,18 @@ namespace LlamaZOO.MitchZais.CaveGenerator
         /// </summary>
         /// <param name="coord">Cell[,] coordinate</param>
         /// <returns></returns>
-        internal Vector3 CoordToPos(Vector2Int coord) => new Vector3(coord.x * subdivPositionMultiplier, 0, coord.y * subdivPositionMultiplier);
+        internal Vector3 CoordToPos(Vector2Int coord) => new Vector3(coord.x * SubdivPositionMultiplier, 0, coord.y * SubdivPositionMultiplier);
+
+        internal Vector2 PosToUV01(Vector3 pos)
+        {// We use the original MapParams sizes here as they represent the real-world width.
+            return new Vector2(pos.x / MapParams.width, pos.z / MapParams.height);
+        }
 
         public MapPattern(MapParams saveData) { this.MapParams = saveData; }
-        public MapPattern(int width, int height, int seed = -1, float density = 0.5f, int refinementSteps = 3, int subdivisions = 2)
+        public MapPattern(int width = 32, int height = 64, int seed = -1)
         {
             if (seed == -1) { seed = UnityEngine.Random.Range(int.MinValue, int.MaxValue); }
-            MapParams = new MapParams(seed, width, height, density, refinementSteps, subdivisions);
+            MapParams = new MapParams(seed: seed, width: width, height: height, density: 0.5f);
         }
     }
 }

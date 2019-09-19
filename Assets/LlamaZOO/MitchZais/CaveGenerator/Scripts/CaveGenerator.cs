@@ -3,9 +3,16 @@
 namespace LlamaZOO.MitchZais.CaveGenerator
 {
     public class CaveGenerator : MonoBehaviour
-    {  
+    {
+        public Material groundMat;
+        public Material wallMat;
+        public MapMeshGenerator meshGenerator;
+
         [SerializeField] private bool generateCave = false;
         [SerializeField] private bool generateNewSeedEachTime = false;
+
+        [Header("Debug")]
+        [SerializeField] private bool previewPatternOnFloor = false;
         [SerializeField] private bool colorCodedRooms = false;
 
         [Header("Map Generation Parameters")]
@@ -37,20 +44,36 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             {
                 generateCave = false;
                 if (generateNewSeedEachTime) { mapParams.GenerateNewSeed(); }
-                GeneratePreviewPlane(mapParams.width, mapParams.height);
+                ClearChildrenImmediate();
 
                 MapPattern map = GenerateCave(mapParams);
                 map.ApplyMapToTexture2D(ref mapTex, colorCodedRooms);
+
+                MapMeshGenerator meshGen = new MapMeshGenerator(map, 5);
+                if (previewPatternOnFloor) { GeneratePreviewPlane(mapParams.width, mapParams.height); }
+                else { InstantiateMesh(meshGen.GroundMesh, groundMat, true, "Ground"); }
+                InstantiateMesh(meshGen.WallMeshExternal, wallMat, false, "WallExternal");
+                InstantiateMesh(meshGen.PatternMesh, wallMat, false, "MapPattern");
+                foreach(var wall in meshGen.WallMeshesInternal) { InstantiateMesh(wall, wallMat, true, "WallInternal"); }
             }
+        }
+
+
+        private void InstantiateMesh(Mesh mesh, Material mat, bool addMeshCollider, string objName)
+        {
+            GameObject obj = new GameObject(objName, new System.Type[] { typeof(MeshFilter), typeof(MeshRenderer) });
+            obj.transform.SetParent(this.transform, false);
+            obj.isStatic = true;
+            MeshFilter mf = obj.GetComponent<MeshFilter>();
+            mf.mesh = mesh;
+            var rend = obj.GetComponent<Renderer>();
+            rend.material = mat;
+
+            if(addMeshCollider){ obj.AddComponent<MeshCollider>().sharedMesh = mesh; }
         }
 
         private void GeneratePreviewPlane(int width, int height)
         {
-            for(int c = transform.childCount - 1; c >= 0; c--)
-            {
-                DestroyImmediate(transform.GetChild(c).gameObject);
-            }
-
             if (!mapMaterial) { mapMaterial = new Material(Shader.Find("Unlit/Texture")); }
             if (!mapTex)
             {
@@ -64,10 +87,17 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             renderPlane.name = "MapPreviewPlane";
             renderPlane.SetParent(this.transform, false);
             renderPlane.localScale = new Vector3(width, height, 1);
-            renderPlane.localPosition = new Vector3(width * 0.5f, 0, height * 0.5f);
+            renderPlane.localPosition = new Vector3(width /2, 0, height / 2);
             renderPlane.localEulerAngles = new Vector3(90, 0, 0);
             renderPlane.GetComponent<Renderer>().material = mapMaterial;
-            plane.hideFlags = HideFlags.HideAndDontSave;
+        }
+        private void ClearChildrenImmediate()
+        {
+            for (int c = transform.childCount - 1; c >= 0; c--)
+            {
+                if (Application.isPlaying) { Destroy(transform.GetChild(c).gameObject); }
+                else { DestroyImmediate(transform.GetChild(c).gameObject); }
+            }
         }
 
         public MapPattern GenerateCave(MapParams mapParams)

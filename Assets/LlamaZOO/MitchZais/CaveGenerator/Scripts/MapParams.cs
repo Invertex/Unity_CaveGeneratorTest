@@ -10,6 +10,8 @@ namespace LlamaZOO.MitchZais.CaveGenerator
     {
         public int seed;
         public int width, height;
+        public float wallHeight;
+
         [Range(0.3f, 1.0f)] public float fillDensity;
 
         public RefinementStep[] refinementSteps;
@@ -50,7 +52,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             return this.seed = Random.Range(int.MinValue, int.MaxValue);
         }
 
-        public MapParams(int seed = 0, int width = 128, int height = 128, float density = 0.5f, int smallestRoomArea = 24, int smallestWallArea = 12, RefinementStep[] refinementSteps = null)
+        public MapParams(int seed = 0, int width = 128, int height = 128, float density = 0.5f, int smallestRoomArea = 24, int smallestWallArea = 12, float wallHeight = 5f, RefinementStep[] refinementSteps = null)
         {
             this.seed = seed;
             this.width = width;
@@ -58,6 +60,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             this.fillDensity = density;
             this.smallestRoomArea = smallestRoomArea;
             this.smallestWallArea = smallestWallArea;
+            this.wallHeight = wallHeight;
             this.refinementSteps = refinementSteps == null ? new RefinementStep[]{new RefinementStep(5, 4, 4)} : refinementSteps;
         }
     }
