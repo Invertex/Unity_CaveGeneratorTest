@@ -7,12 +7,13 @@ namespace LlamaZOO.MitchZais.CaveGenerator
         public MapPresetSO mapPreset;
         
         [SerializeField, HideInInspector] private Transform mapMeshGroup;
-        [SerializeField, HideInInspector] private Transform spawnPoint;
+        [SerializeField] private Transform spawnPoint;
         public Transform MapMeshGroup { get { return mapMeshGroup; } }
         public Transform SpawnPoint { get { return spawnPoint; } }
         private void Awake()
         {
             if(mapMeshGroup == null) { GenerateCave(); }
+            if(SpawnPoint != null){             Camera.main.transform.SetPositionAndRotation(spawnPoint.position + Vector3.up, spawnPoint.rotation);}
         }
 
         public void GenerateCave()
@@ -33,6 +34,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             spawnPoint = new GameObject("SpawnPoint").transform;
             spawnPoint.SetParent(this.transform);
             spawnPoint.position = map.CoordToPos(map.SpawnPoint);
+
 
             return map;
         }
