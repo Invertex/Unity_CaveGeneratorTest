@@ -256,7 +256,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             }
         
             //Merge wall regions first as it may affect the area size of rooms 
-            var undersizedWallRegions = GetRegionsUnderSize(CellType.Wall, SubdividedSize(mapParams.smallestWallArea, mapParams.TotalSubdivisions));
+            var undersizedWallRegions = GetRegionsUnderSize(CellType.Wall, MapParams.SubdividedSize(mapParams.smallestWallArea, mapParams.TotalSubdivisions));
             var pendingWallMerges = ConstructRegionMerges(undersizedWallRegions.removedRegions);
             List<MapRegion> wallRegions = Regions[CellType.Wall];
             wallRegions.Clear();
@@ -265,7 +265,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             ProcessMerges(pendingWallMerges);
         
             //Merges room regions
-            var undersizedFloorRegions = GetRegionsUnderSize(CellType.Floor, SubdividedSize(mapParams.smallestRoomArea, mapParams.TotalSubdivisions));
+            var undersizedFloorRegions = GetRegionsUnderSize(CellType.Floor, MapParams.SubdividedSize(mapParams.smallestRoomArea, mapParams.TotalSubdivisions));
             var pendingFloorMerges = ConstructRegionMerges(undersizedFloorRegions.removedRegions, true); 
             List<MapRegion> floorRegions = Regions[CellType.Floor];
             floorRegions.Clear();
@@ -278,28 +278,12 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             floorRegions.ForEach((region) => region.UpdatePerimeterValues(map));
         }
 
-        /// <summary>
-        /// Doubles value for each division
-        /// </summary>
-        /// <param name="val"></param>
-        /// <param name="divisions"></param>
-        /// <returns></returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int SubdividedSize(int val, int divisions)
-        {
-            for (int i = 0; i < divisions; i++)
-            {
-                val += val;
-            }
-            return val;
-        }
-
         private Cell[,] SubdivideMap(Cell[,] map, int subdivisions)
         {
             int height = map.GetLength(0); int width = map.GetLength(1);
-            int scaledWidth = SubdividedSize(width, subdivisions);
-            int scaledHeight = SubdividedSize(height, subdivisions);
-            int scaledIdxMult = SubdividedSize(1, subdivisions);
+            int scaledWidth = MapParams.SubdividedSize(width, subdivisions);
+            int scaledHeight = MapParams.SubdividedSize(height, subdivisions);
+            int scaledIdxMult = MapParams.SubdividedSize(1, subdivisions);
 
             Cell[,] scaledMap = new Cell[scaledHeight, scaledWidth];
 
@@ -393,7 +377,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
 
         void CreatePathBetweenRegions(MapRegion region1, MapRegion region2, Vector2Int startCoord, Vector2Int endCoord, int radius)
         {
-            radius = SubdividedSize(radius, MapParams.TotalSubdivisions);
+            radius = MapParams.SubdividedSize(radius, MapParams.TotalSubdivisions);
             region1.LinkRegion(region2);
 
             List<Vector2Int> path = GetPathPoints(startCoord, endCoord);

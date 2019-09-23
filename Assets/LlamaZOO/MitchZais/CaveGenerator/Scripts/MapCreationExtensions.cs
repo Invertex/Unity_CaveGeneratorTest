@@ -46,6 +46,30 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             tex.Apply();
         }
         
+        /// <summary>
+        /// Scales this texture using a temporary RenderTexture target.
+        /// This texture is modified directly without breaking references, returned result is simply in case of a need for quick assignment or chaining.
+        /// </summary>
+        /// <param name="tex"></param>
+        /// <param name="newWidth"></param>
+        /// <param name="newHeight"></param>
+        /// <returns></returns>
+        public static Texture2D Scale(this Texture2D tex, int newWidth, int newHeight)
+        {
+            var lastActiveRT = RenderTexture.active;
+            var RT = new RenderTexture(newWidth, newHeight, 0);
+            RenderTexture.active = RT;
+            Graphics.Blit(tex, RT);
+            RenderTexture.active = lastActiveRT;
+
+            int mipCnt = tex.mipmapCount;
+            tex.Resize(newWidth, newHeight);
+            tex.ReadPixels(new Rect(0, 0, RT.width, RT.height), 0, 0, mipCnt > 0);
+            tex.Apply();
+
+            return tex;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static MapRegion GetRegion(this MapPattern map, Cell cell)
         {

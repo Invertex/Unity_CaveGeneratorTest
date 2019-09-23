@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Runtime.CompilerServices;
+using UnityEngine;
 
 namespace LlamaZOO.MitchZais.CaveGenerator
 {
@@ -16,6 +17,25 @@ namespace LlamaZOO.MitchZais.CaveGenerator
 
         public RefinementStep[] refinementSteps;
 
+        public int SubdividedWidth { get { return SubdividedSize(width, TotalSubdivisions); } }
+        public int SubdividedHeight { get { return SubdividedSize(height, TotalSubdivisions); } }
+
+        /// <summary>
+        /// Doubles value for each division
+        /// </summary>
+        /// <param name="val"></param>
+        /// <param name="divisions"></param>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int SubdividedSize(int val, int divisions)
+        {
+            for (int i = 0; i < divisions; i++)
+            {
+                val += val;
+            }
+            return val;
+        }
+
         public int TotalSubdivisions
         {
             get
@@ -31,7 +51,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
         public int smallestWallArea;
 
         [System.Serializable]
-        public class RefinementStep
+        public struct RefinementStep
         {
             [Range(0, 20)] public int iterations;
             [Range(1, 7)] public int roomLifeWeight;
@@ -52,6 +72,14 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             return this.seed = Random.Range(int.MinValue, int.MaxValue);
         }
 
+        public MapParams(MapParams mapParams) : this (mapParams.seed, mapParams.width, mapParams.height, mapParams.fillDensity, mapParams.smallestRoomArea, mapParams.smallestWallArea, mapParams.wallHeight)
+        {
+            if(mapParams.refinementSteps != null)
+            {
+                this.refinementSteps = mapParams.refinementSteps.Clone() as RefinementStep[];
+            }
+        }
+
         public MapParams(int seed = 0, int width = 128, int height = 128, float density = 0.5f, int smallestRoomArea = 24, int smallestWallArea = 12, float wallHeight = 5f, RefinementStep[] refinementSteps = null)
         {
             this.seed = seed;
@@ -63,5 +91,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             this.wallHeight = wallHeight;
             this.refinementSteps = refinementSteps == null ? new RefinementStep[]{new RefinementStep(5, 4, 4)} : refinementSteps;
         }
+
+        public MapParams() : this(0){ System.Random rand = new System.Random(); seed = rand.Next(); }
     }
 }

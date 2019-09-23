@@ -17,7 +17,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             this.map = map;
             GroundMesh = GenerateGroundMesh();
             WallMeshExternal = GenerateWallMesh(GroundMesh.vertices, height, true, true);
-            MarchingSquaresMesh marchedPatternData = new MarchingSquaresMesh(map, height);
+            var marchedPatternData = new MarchingSquaresMesh(map, height);
             PatternMesh = marchedPatternData.Mesh;
             GeneratePlanarUVs(PatternMesh);
             WallMeshesInternal = WallMeshesFromOutlines(marchedPatternData.Outlines, -height);
@@ -119,58 +119,78 @@ namespace LlamaZOO.MitchZais.CaveGenerator
                 outline = DuplicateVertsForHardEdges(outline);
                 outlineCnt = outline.Count;
             }
-
-            List<Vector3> wallVertices = new List<Vector3>(outline.Count * 2);
-            List<int> wallTriangles = new List<int>();
-
-            Vector3 thickness = Vector3.up * height;
-
-            int triangleOffset = 0;
-            int localVertOffset = wallVertices.Count;
-
-            if (outline[outlineCnt - 1] == outline[0])
+            
+            if(loopingOutline && outline[0] != outline[outlineCnt - 1])
             {
-                loopingOutline = true;
-                outlineCnt -= 1;
+                outline = new List<Vector3>(outline);
+                outline.Add(outline[0]);
+                
+                outlineCnt++;
             }
 
+            List<int> triangles = new List<int>();
+            List<Vector3> verts = new List<Vector3>(outline.Count * 2);
+            List<Vector2> uvs = new List<Vector2>(outline.Count * 2);
+            float uvDistAccum = 0;
+            Vector3 thickness = Vector3.up * height;
+
             //Set first vertical edge so we can loop easily without duplicating verts
-            wallVertices.Add(outline[0]);
-            wallVertices.Add(outline[0] + thickness);
+            verts.Add(outline[0]);
+            verts.Add(outline[0] + thickness);
+            int triangleOffset = 2;
+
+            uvs.Add(new Vector2(0, uvDistAccum));
+            uvs.Add(new Vector2(height, uvDistAccum));
 
             for (int i = 1; i < outlineCnt; i++)
             {
-                triangleOffset = wallVertices.Count;
-                wallVertices.Add(outline[i]); // right
-                wallVertices.Add(outline[i] + thickness); // bottom right
+                Vector3 vert = outline[i];
+                verts.Add(vert); 
+                verts.Add(vert + thickness);
 
-                wallTriangles.Add(triangleOffset - 1); //bottom left
-                wallTriangles.Add(triangleOffset + 1); //bottom right
-                wallTriangles.Add(triangleOffset - 2); //top left
+                uvDistAccum += Vector3.Distance(vert, outline[i - 1]);
+                uvs.Add(new Vector2(0, uvDistAccum));
+                uvs.Add(new Vector2(height, uvDistAccum));
 
-                wallTriangles.Add(triangleOffset); //bottom left
-                wallTriangles.Add(triangleOffset - 2);
-                wallTriangles.Add(triangleOffset + 1); // bottom right
+                triangles.Add(triangleOffset - 1);
+                triangles.Add(triangleOffset + 1);
+                triangles.Add(triangleOffset - 2);
+
+                triangles.Add(triangleOffset); 
+                triangles.Add(triangleOffset - 2);
+                triangles.Add(triangleOffset + 1); 
+
+                triangleOffset += 2;
             }
 
-            if (loopingOutline)
+            Mesh mesh = new Mesh();
+            mesh.vertices = verts.ToArray();
+            mesh.triangles = triangles.ToArray();
+            mesh.uv = uvs.ToArray();
+
+            var uv2 = new Vector2[uvs.Count];
+            var uvScaleFactor = new Vector2(1 / height, uvs.Count / uvDistAccum);
+
+            for(int i = 1; i < uvs.Count; i+= 2)
             {
-                //Link back with starting verts
-                wallTriangles.Add(triangleOffset + 1);
-                wallTriangles.Add(localVertOffset + 1);
-                wallTriangles.Add(localVertOffset);
-
-                wallTriangles.Add(localVertOffset);
-                wallTriangles.Add(triangleOffset);
-                wallTriangles.Add(triangleOffset + 1);
+                uv2[i] = uvs[i] * uvScaleFactor;
             }
-            
-            Mesh wallMesh = new Mesh();
-            wallMesh.vertices = wallVertices.ToArray();
-            wallMesh.triangles = wallTriangles.ToArray();
-            wallMesh.RecalculateNormals();
 
-            return wallMesh;
+            mesh.uv2 = uv2;
+            mesh.uv3 = uv2;
+
+            mesh.RecalculateNormals();
+            //Average the normal across the UV seam
+            var normals = mesh.normals;
+            Vector3 avgSeamNormal = (normals[0] + normals[normals.Length - 1]) / 2f;
+            normals[normals.Length - 2] = avgSeamNormal;
+            normals[normals.Length - 1] = avgSeamNormal; 
+            normals[0] = avgSeamNormal;
+            normals[1] = avgSeamNormal;
+            
+            mesh.normals = normals;
+
+            return mesh;
         }
 
         internal static IList<Vector3> DuplicateVertsForHardEdges(IList<Vector3> verts)
