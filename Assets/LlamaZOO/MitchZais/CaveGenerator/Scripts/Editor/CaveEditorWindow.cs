@@ -54,7 +54,7 @@ namespace LlamaZOO.MitchZais.CaveGeneratorEditor
             EditorGUILayout.Space();
             var obj = EditorGUILayout.ObjectField(obj: cave, objType: typeof(Cave), allowSceneObjects: true, label: new GUIContent("Editing Cave: "));
         
-            if(obj == null || (obj as Cave) != cave)
+            if(obj != null && (obj as Cave) != cave)
             {
                 SetCaveContext(obj as Cave);
             }

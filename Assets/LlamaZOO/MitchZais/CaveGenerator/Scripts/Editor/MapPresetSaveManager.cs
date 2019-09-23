@@ -36,11 +36,7 @@ namespace LlamaZOO.MitchZais.CaveGeneratorEditor
         }
 
         internal static bool PresetNameExists(string saveName) => PresetExistsAtPath(SaveNameToPath(saveName));
-
-        internal static bool PresetExistsAtPath(string path)
-        {
-            string guid = AssetDatabase.AssetPathToGUID(path);
-            return !string.IsNullOrWhiteSpace(guid);
-        }
+        internal static bool PresetExistsAtPath(string path) => AssetDatabase.LoadMainAssetAtPath(path) != null;
+        
     }
 }
