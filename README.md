@@ -1,8 +1,10 @@
 # 3D Cave Generator
-3D procedural cave generation system based on cellular automata, done for a LlamaZOO test.
--Ensures connectivity of all rooms and culling/mergin of rooms and walls under a user-defined area size.
--Generates a mesh comprisong of a ceiling, floor, pattern-cap and wall meshes segmented into regions for collision efficiency.
--Generates texture of the pattern for Mini-Map usage.
+3D procedural cave generation system based on cellular automata, done for a LlamaZOO test.<br/>
+-Ensures connectivity of all rooms and culling/mergin of rooms and walls under a user-defined area size.<br/>
+-Generates a mesh comprising of a ceiling, floor, pattern-cap and wall meshes segmented into regions for collision efficiency.<br/>
+-Generates texture of the pattern for Mini-Map usage.<br/>
+
+<b>Built in Unity 2018.4.8f1<b/>
 
 # Usage:
 
