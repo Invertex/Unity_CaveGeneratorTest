@@ -22,6 +22,7 @@ namespace LlamaZOO.MitchZais.CaveGeneratorEditor
             Undo.RecordObject(MapPreset, "Modified Map Preset");
             DrawMapParams(MapPreset.MapParams);
             DrawMapInfo();
+            EditorUtility.SetDirty(MapPreset);
         }
 
         private void DrawMapParams(MapParams mapParams)
@@ -40,8 +41,8 @@ namespace LlamaZOO.MitchZais.CaveGeneratorEditor
             mapParams.fillDensity = EditorGUILayout.Slider("Fill Density: ", mapParams.fillDensity, 0.3f, 1.0f);
 
             int maxArea = mapParams.SubdividedHeight * mapParams.SubdividedWidth / 2;
-            mapParams.smallestRoomArea = Mathf.Clamp(EditorGUILayout.IntField("Min Room Area: ", mapParams.smallestRoomArea), 0, maxArea);
-            mapParams.smallestWallArea = Mathf.Clamp(EditorGUILayout.IntField("Min Wall Area: ", mapParams.smallestWallArea), 0, maxArea);
+            mapParams.minRoomArea = Mathf.Clamp(EditorGUILayout.IntField("Min Room Area: ", mapParams.minRoomArea), 9, maxArea);
+            mapParams.minWallArea = Mathf.Clamp(EditorGUILayout.IntField("Min Wall Area: ", mapParams.minWallArea), 0, maxArea);
             
             DrawRefinementSteps(mapParams);
         }
@@ -62,8 +63,8 @@ namespace LlamaZOO.MitchZais.CaveGeneratorEditor
             {
                 EditorGUILayout.LabelField("", MapEditorGUIStyles.ThinLineHorizontal);
                 refineSteps[i].iterations = EditorGUILayout.IntSlider(new GUIContent("Iterations: "), refineSteps[i].iterations, 0, 20);
-                refineSteps[i].roomLifeWeight = EditorGUILayout.IntSlider(new GUIContent("Room Life Weight: "), refineSteps[i].roomLifeWeight, 1, 7);
-                refineSteps[i].roomDeathWeight = EditorGUILayout.IntSlider(new GUIContent("Room Death Weight: "), refineSteps[i].roomDeathWeight, 1, 7);
+                refineSteps[i].cellLiveThreshold = EditorGUILayout.IntSlider(new GUIContent("Cell Live Threshold: ", "A cell lives if its alive neighbor count is above this value."), refineSteps[i].cellLiveThreshold, 1, 7);
+                refineSteps[i].cellDeathThreshold = EditorGUILayout.IntSlider(new GUIContent("Cell Death Threshold: ", "A cell dies if its alive neighbors are below this value."), refineSteps[i].cellDeathThreshold, 1, 7);
                 
                 EditorGUILayout.BeginHorizontal();
                     refineSteps[i].subdivideFirst = EditorGUILayout.Toggle(new GUIContent("Subdivide cells first "), refineSteps[i].subdivideFirst);

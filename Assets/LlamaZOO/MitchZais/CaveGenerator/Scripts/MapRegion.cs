@@ -168,6 +168,48 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             return false;
         }
 
+        internal Vector2Int[] GetCoordsWithFreeSpaceInRadius(MapPattern map, int freeSpaceRadius)
+        {
+            var bag = new ConcurrentBag<Vector2Int>();
+            Vector2Int[] cells = new Vector2Int[CellCoords.Count];
+            CellCoords.CopyTo(cells);
+
+            var mtOpts = new ParallelOptions() { MaxDegreeOfParallelism = System.Environment.ProcessorCount * 2 };
+
+            Parallel.For(0, cells.Length, mtOpts,
+                i => {
+                    if(FreeCellsInRadius(map, cells[i], freeSpaceRadius))
+                    {
+                        bag.Add(cells[i]);
+                    }
+                }
+            );
+
+            return bag.ToArray();
+        }
+
+        internal bool FreeCellsInRadius(MapPattern map, Vector2Int coord, int radius)
+        {
+            int radSqr = radius * radius;
+            
+            for (int y = -radius; y <= radius; y++)
+            {
+                for (int x = -radius; x <= radius; x++)
+                {
+                    if (x * x + y * y <= radSqr)
+                    {
+                        Vector2Int sampleCoord = new Vector2Int(coord.x + x, coord.y + y);
+
+                        if (map.IsOutsideMap(sampleCoord)) { return false; }
+                        
+                        Cell sampledCell = map.Cells[sampleCoord.y, sampleCoord.x];
+                        if(sampledCell.cellType != this.CellType || sampledCell.regionNum != this.RegionNum){ return false; }
+                    }
+                }
+            }
+            return true;
+        }
+
         internal (MapRegion fromRegion, MapRegion toRegion) GetUnlinkedRegionWithShortestDistanceBetween(MapRegion defaultClosestRegion, HashSet<MapRegion> ignoredRegions)
         {
             (MapRegion fromRegion, MapRegion toRegion) bestMatch = (this, GetClosestUnlinkedRegion());

@@ -1,10 +1,7 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using LlamaZOO.MitchZais.CaveGenerator;
-using System.IO;
 
 namespace LlamaZOO.MitchZais.CaveGeneratorEditor
 {
@@ -17,12 +14,10 @@ namespace LlamaZOO.MitchZais.CaveGeneratorEditor
         [SerializeField] private MapPresetSOInspector presetEditor;
 
         /** Map Editor Settings **/
-        [SerializeField] private bool genPreviewTextureOnly;
-        [SerializeField] private bool genPreviewTexture;
-        [SerializeField] private bool colorCodedRooms;
+        [SerializeField] private bool genMinimapTextureOnly;
+        [SerializeField] private bool colorCodedRooms = true;
         [SerializeField] private bool genRandomSeedEachTime;
         [SerializeField] private string saveName = "New Map";
-        [SerializeField] private Texture2D previewTexture;
 
         private MapPresetSO MapPreset { get { return cave.mapPreset; } }
         private MapParams MapParams { get { return MapPreset.MapParams; } }
@@ -44,7 +39,7 @@ namespace LlamaZOO.MitchZais.CaveGeneratorEditor
 
                 DrawMapGenerationControls();
                 DrawSaveControls();
-                DrawPatternTexture(previewTexture);
+                DrawPatternTexture(MapPreset.minimap);
 
             EditorGUILayout.EndScrollView();
         }
@@ -74,12 +69,8 @@ namespace LlamaZOO.MitchZais.CaveGeneratorEditor
             EditorGUILayout.LabelField("", MapEditorGUIStyles.ThinLineHorizontal);
             EditorGUILayout.LabelField(".:Map Generation:.", MapEditorGUIStyles.LabelUpperCenter);
 
-            genPreviewTexture = EditorGUILayout.ToggleLeft("Generate Minimap", genPreviewTexture);
-            EditorGUI.BeginDisabledGroup(!genPreviewTexture);
-                colorCodedRooms = EditorGUILayout.ToggleLeft(new GUIContent("Color Coded Rooms", "Each separate room island that became connected will have a different color."), colorCodedRooms);
-                genPreviewTextureOnly = EditorGUILayout.ToggleLeft(new GUIContent("Only Generate Minimap", "Skips meshing to speed up pattern generating."), genPreviewTextureOnly); 
-            EditorGUI.EndDisabledGroup();
-
+            colorCodedRooms = EditorGUILayout.ToggleLeft(new GUIContent("Color Coded Rooms", "Each separate room island that became connected will have a different color."), colorCodedRooms);
+            genMinimapTextureOnly = EditorGUILayout.ToggleLeft(new GUIContent("Only Generate Minimap", "Skips meshing to speed up pattern generating."), genMinimapTextureOnly); 
             genRandomSeedEachTime = EditorGUILayout.ToggleLeft("Generate Random Seed Each Time", genRandomSeedEachTime);
 
             EditorGUILayout.Space();
@@ -90,12 +81,8 @@ namespace LlamaZOO.MitchZais.CaveGeneratorEditor
 
                 EditorUtility.DisplayProgressBar("Cave Generator", "Generating map...", 0);
 
-                if(genPreviewTexture && genPreviewTextureOnly){ previewTexture = cave.GeneratePatternTextureOnly(MapPreset, colorCodedRooms); }
-                else
-                { 
-                    var generatedMap = cave.GenerateCave(MapPreset);
-                    if(genPreviewTexture) { generatedMap.ApplyMapToTexture2D(ref previewTexture, colorCodedRooms); }
-                }
+                if(genMinimapTextureOnly){ cave.GeneratePatternTextureOnly(MapPreset, colorCodedRooms); }
+                else { cave.GenerateCave(MapPreset); }
                 
                 EditorUtility.ClearProgressBar();
             }
@@ -139,7 +126,6 @@ namespace LlamaZOO.MitchZais.CaveGeneratorEditor
                 if (GUILayout.Button("Create New Preset Instance"))
                 {
                     CreateNewPresetInstance();
-                    MarkDirty();
                 }
             }
         }
@@ -170,6 +156,7 @@ namespace LlamaZOO.MitchZais.CaveGeneratorEditor
             saveName = MapPresetSaveManager.GetUniqueSaveName(saveName);
             MapPreset.mapName = saveName;
             preset.ApplyModifiedProperties();
+            MarkDirty();
         }
 
         private void CreateSerializedProps(MapPresetSO preset)

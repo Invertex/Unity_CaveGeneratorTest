@@ -6,9 +6,10 @@ namespace LlamaZOO.MitchZais.CaveGenerator
     {
         public MapPresetSO mapPreset;
         
-        [SerializeField] private Transform mapMeshGroup;
+        [SerializeField, HideInInspector] private Transform mapMeshGroup;
+        [SerializeField, HideInInspector] private Transform spawnPoint;
         public Transform MapMeshGroup { get { return mapMeshGroup; } }
-
+        public Transform SpawnPoint { get { return spawnPoint; } }
         private void Awake()
         {
             if(mapMeshGroup == null) { GenerateCave(); }
@@ -28,6 +29,10 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             map.Generate();
             mapPreset.minimap = GeneratePatternTexture(mapPreset, map, true);
             GenerateMeshes(map);
+
+            spawnPoint = new GameObject("SpawnPoint").transform;
+            spawnPoint.SetParent(this.transform);
+            spawnPoint.position = map.CoordToPos(map.SpawnPoint);
 
             return map;
         }
@@ -69,13 +74,19 @@ namespace LlamaZOO.MitchZais.CaveGenerator
 
         private void ClearGeneratedChildren()
         {
+            if(spawnPoint != null) { DestroySafe(SpawnPoint.gameObject); }
             if(mapMeshGroup == null) { return; }
 
             for (int c = transform.childCount - 1; c >= 0; c--)
             {
-                if (Application.isPlaying) { Destroy(transform.GetChild(c).gameObject); }
-                else { DestroyImmediate(transform.GetChild(c).gameObject); }
+                DestroySafe(transform.GetChild(c).gameObject);
             }
+        }
+
+        private void DestroySafe(GameObject obj)
+        {
+            if (Application.isPlaying) { Destroy(obj); }
+            else { DestroyImmediate(obj); }
         }
 
         private void InstantiateMesh(Mesh mesh, Material mat, bool addMeshCollider, string objName)

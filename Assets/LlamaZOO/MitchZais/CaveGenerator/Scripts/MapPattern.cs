@@ -29,6 +29,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
         }
 
         public MapRegion SpawnRoom { get; private set; }
+        public Vector2Int SpawnPoint { get; private set; }
 
         public float SubdivPositionMultiplier { get; private set; }
         public int Width { get { return  Cells.GetLength(1); } }
@@ -55,6 +56,15 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             BuildClosestPointsData();
             ConnectRoomsToClosestRoom();
             SpawnRoom = Rooms[Random.Range(0, Rooms.Count)];
+
+            var spawnPoints = SpawnRoom.GetCoordsWithFreeSpaceInRadius(this, 1);
+
+            if(spawnPoints.Length > 0)
+            {
+                SpawnPoint = spawnPoints[Random.Range(0, spawnPoints.Length - 1)];
+            } 
+            else{ SpawnPoint = SpawnRoom.CellCoords.ElementAt(0); }
+            
             EnsureAllRegionsReachable();
         }
 
@@ -75,6 +85,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             foreach (var step in steps)
             {
                 if (step.subdivideFirst) { map = SubdivideMap(map, 1); }
+
                 for (int i = 0; i < step.iterations; i++)
                 {
                     int mapHeight = map.GetLength(0);
@@ -89,11 +100,14 @@ namespace LlamaZOO.MitchZais.CaveGenerator
                             Cell targetCell = map[y, x];
                             int neighborFloorCells = map.GetSurroundingCellCount(new Vector2Int(x, y), 1, CellType.Floor);
 
-                            if (targetCell != CellType.Wall && neighborFloorCells < step.roomDeathWeight)
+                            if (targetCell != CellType.Wall)
                             {
-                                targetCell.cellType = CellType.Wall;
+                                if (neighborFloorCells < step.cellDeathThreshold)
+                                { 
+                                    targetCell.cellType = CellType.Wall;
+                                }
                             }
-                            else if (neighborFloorCells > step.roomLifeWeight)
+                            else if (neighborFloorCells > step.cellLiveThreshold)
                             {
                                 targetCell.cellType = CellType.Floor;
                             }
@@ -256,7 +270,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             }
         
             //Merge wall regions first as it may affect the area size of rooms 
-            var undersizedWallRegions = GetRegionsUnderSize(CellType.Wall, MapParams.SubdividedSize(mapParams.smallestWallArea, mapParams.TotalSubdivisions));
+            var undersizedWallRegions = GetRegionsUnderSize(CellType.Wall, MapParams.SubdividedSize(mapParams.minWallArea, mapParams.TotalSubdivisions));
             var pendingWallMerges = ConstructRegionMerges(undersizedWallRegions.removedRegions);
             List<MapRegion> wallRegions = Regions[CellType.Wall];
             wallRegions.Clear();
@@ -265,7 +279,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             ProcessMerges(pendingWallMerges);
         
             //Merges room regions
-            var undersizedFloorRegions = GetRegionsUnderSize(CellType.Floor, MapParams.SubdividedSize(mapParams.smallestRoomArea, mapParams.TotalSubdivisions));
+            var undersizedFloorRegions = GetRegionsUnderSize(CellType.Floor, MapParams.SubdividedSize(mapParams.minRoomArea, mapParams.TotalSubdivisions));
             var pendingFloorMerges = ConstructRegionMerges(undersizedFloorRegions.removedRegions, true); 
             List<MapRegion> floorRegions = Regions[CellType.Floor];
             floorRegions.Clear();

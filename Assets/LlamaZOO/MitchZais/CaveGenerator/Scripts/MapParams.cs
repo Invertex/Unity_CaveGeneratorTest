@@ -47,22 +47,22 @@ namespace LlamaZOO.MitchZais.CaveGenerator
         }
 
         [Header("Cleanup Parameters")]
-        public int smallestRoomArea;
-        public int smallestWallArea;
+        public int minRoomArea;
+        public int minWallArea;
 
         [System.Serializable]
         public struct RefinementStep
         {
             [Range(0, 20)] public int iterations;
-            [Range(1, 7)] public int roomLifeWeight;
-            [Range(1, 7)] public int roomDeathWeight;
+            [Range(1, 7)] public int cellLiveThreshold;
+            [Range(1, 7)] public int cellDeathThreshold;
             public bool subdivideFirst;
 
-            public RefinementStep(int iterations = 1, int roomLifeWeight = 4, int roomDeathWeight = 4, bool subdivide = false)
+            public RefinementStep(int iterations = 1, int cellLiveThreshold = 4, int cellDeathThreshold = 4, bool subdivide = false)
             {
                 this.iterations = Mathf.Clamp(iterations, 1, 20);
-                this.roomLifeWeight = Mathf.Clamp(roomLifeWeight, 1, 7);
-                this.roomDeathWeight = Mathf.Clamp(roomDeathWeight, 1, 7);
+                this.cellLiveThreshold = Mathf.Clamp(cellLiveThreshold, 1, 7);
+                this.cellDeathThreshold = Mathf.Clamp(cellDeathThreshold, 1, 7);
                 this.subdivideFirst = subdivide;
             }
         }
@@ -72,7 +72,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             return this.seed = Random.Range(int.MinValue, int.MaxValue);
         }
 
-        public MapParams(MapParams mapParams) : this (mapParams.seed, mapParams.width, mapParams.height, mapParams.fillDensity, mapParams.smallestRoomArea, mapParams.smallestWallArea, mapParams.wallHeight)
+        public MapParams(MapParams mapParams) : this (mapParams.seed, mapParams.width, mapParams.height, mapParams.fillDensity, mapParams.minRoomArea, mapParams.minWallArea, mapParams.wallHeight)
         {
             if(mapParams.refinementSteps != null)
             {
@@ -86,8 +86,8 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             this.width = width;
             this.height = height;
             this.fillDensity = density;
-            this.smallestRoomArea = smallestRoomArea;
-            this.smallestWallArea = smallestWallArea;
+            this.minRoomArea = smallestRoomArea;
+            this.minWallArea = smallestWallArea;
             this.wallHeight = wallHeight;
             this.refinementSteps = refinementSteps == null ? new RefinementStep[]{new RefinementStep(5, 4, 4)} : refinementSteps;
         }
