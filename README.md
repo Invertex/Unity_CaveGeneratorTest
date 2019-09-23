@@ -4,7 +4,7 @@
 -Generates a mesh comprising of a ceiling, floor, pattern-cap and wall meshes segmented into regions for collision efficiency.<br/>
 -Generates texture of the pattern for Mini-Map usage.<br/>
 
-<b>Built in Unity 2018.4.8f1<b/>
+<b>Built in Unity 2018.4.8f1</b>
 
 # Usage:
 
