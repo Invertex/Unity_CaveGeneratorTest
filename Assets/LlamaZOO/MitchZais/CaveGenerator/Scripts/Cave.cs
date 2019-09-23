@@ -47,6 +47,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             mapMeshGroup.SetParent(this.transform, false);
 
             InstantiateMesh(meshGen.GroundMesh, mapPreset.groundMaterial, true, "Ground");
+            InstantiateMesh(meshGen.CeilingMesh, mapPreset.capMaterial, true, "Ceiling");
             InstantiateMesh(meshGen.WallMeshExternal, mapPreset.wallMaterial, false, "WallExternal");
             InstantiateMesh(meshGen.PatternMesh, mapPreset.capMaterial, false, "MapPattern");
             foreach (var wall in meshGen.WallMeshesInternal) { InstantiateMesh(wall, mapPreset.wallMaterial, true, "WallInternal"); }

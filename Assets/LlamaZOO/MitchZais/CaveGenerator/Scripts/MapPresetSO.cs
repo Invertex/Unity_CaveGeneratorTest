@@ -14,9 +14,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
         public MapParams MapParams { get { return mapParams; } private set { mapParams = value; } }
 
         public Texture2D minimap;
-        public Material groundMaterial;
-        public Material wallMaterial;
-        public Material capMaterial;
+        public Material groundMaterial, wallMaterial, capMaterial, ceilingMaterial;
 
         public MapPresetSO()
         {

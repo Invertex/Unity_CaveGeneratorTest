@@ -9,13 +9,19 @@ namespace LlamaZOO.MitchZais.CaveGenerator
         public Mesh WallMeshExternal { get; private set; }
         public Mesh[] WallMeshesInternal { get; private set; }
         public Mesh PatternMesh { get; private set; }
+        public Mesh CeilingMesh { get; private set; }
 
         private MapPattern map;
 
         internal void GenerateMapMesh(MapPattern map, float height)
         {
             this.map = map;
-            GroundMesh = GenerateGroundMesh();
+            GroundMesh = GeneratePlane(new Vector2Int(0, 0), new Vector2Int(map.Width, map.Height), 0);
+            CeilingMesh = GeneratePlane(new Vector2Int(0, 0), new Vector2Int(map.Width, map.Height), height);
+            var tris = CeilingMesh.triangles;
+            System.Array.Reverse(tris);
+            CeilingMesh.triangles = tris;
+            CeilingMesh.RecalculateNormals();
             WallMeshExternal = GenerateWallMesh(GroundMesh.vertices, height, true, true);
             var marchedPatternData = new MarchingSquaresMesh(map, height);
             PatternMesh = marchedPatternData.Mesh;
@@ -23,7 +29,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             WallMeshesInternal = WallMeshesFromOutlines(marchedPatternData.Outlines, -height);
         }
 
-        private Mesh GenerateGroundMesh()
+        private Mesh GeneratePlane(Vector2Int bottomLeftCoord, Vector2Int topRightCoord, float height)
         {
             Mesh plane = new Mesh();
             plane.name = "CaveGroundPlane";
@@ -31,15 +37,15 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             Vector3[] verts = new Vector3[4];
 
             (int vertIdx, Vector2Int coord) bottomLeft, bottomRight, topLeft, topRight;
-            topLeft =       (0, new Vector2Int(0, map.Height));
-            bottomLeft =    (1, new Vector2Int(0, 0));
-            bottomRight =   (2, new Vector2Int(map.Width, 0));
-            topRight =      (3, new Vector2Int(map.Width, map.Height));
+            topLeft =       (0, new Vector2Int(bottomLeftCoord.x, topRightCoord.y));
+            bottomLeft =    (1, bottomLeftCoord);
+            bottomRight =   (2, new Vector2Int(topRightCoord.x, bottomLeftCoord.y));
+            topRight =      (3, topRightCoord);
 
-            verts[topLeft.vertIdx] = map.CoordToPos(topLeft.coord) + new Vector3(halfTexelOffset, 0, -halfTexelOffset);
-            verts[bottomLeft.vertIdx] = map.CoordToPos(bottomLeft.coord) + new Vector3(halfTexelOffset, 0, halfTexelOffset);
-            verts[bottomRight.vertIdx] = map.CoordToPos(bottomRight.coord) + new Vector3(-halfTexelOffset, 0, halfTexelOffset);
-            verts[topRight.vertIdx] = map.CoordToPos(topRight.coord) + new Vector3(-halfTexelOffset, 0, -halfTexelOffset);
+            verts[topLeft.vertIdx] = map.CoordToPos(topLeft.coord) + new Vector3(halfTexelOffset, height, -halfTexelOffset);
+            verts[bottomLeft.vertIdx] = map.CoordToPos(bottomLeft.coord) + new Vector3(halfTexelOffset, height, halfTexelOffset);
+            verts[bottomRight.vertIdx] = map.CoordToPos(bottomRight.coord) + new Vector3(-halfTexelOffset, height, halfTexelOffset);
+            verts[topRight.vertIdx] = map.CoordToPos(topRight.coord) + new Vector3(-halfTexelOffset, height, -halfTexelOffset);
 
             int[] triangles = new int[6];
 

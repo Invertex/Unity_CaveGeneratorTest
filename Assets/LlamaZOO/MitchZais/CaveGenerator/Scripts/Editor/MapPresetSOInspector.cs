@@ -101,6 +101,7 @@ namespace LlamaZOO.MitchZais.CaveGeneratorEditor
             MapPreset.groundMaterial = EditorGUILayout.ObjectField(label: "Ground Material", obj: MapPreset.groundMaterial, objType: typeof(Material), allowSceneObjects: false) as Material;
             MapPreset.wallMaterial = EditorGUILayout.ObjectField(label: "Wall Material", obj: MapPreset.wallMaterial, objType: typeof(Material), allowSceneObjects: false) as Material;
             MapPreset.capMaterial = EditorGUILayout.ObjectField(label: "Cap Material", obj: MapPreset.capMaterial, objType: typeof(Material), allowSceneObjects: false) as Material;
+            MapPreset.ceilingMaterial = EditorGUILayout.ObjectField(label: "Ceiling Material", obj: MapPreset.ceilingMaterial, objType: typeof(Material), allowSceneObjects: false) as Material;
         }
 
         private void DrawMiniMapPreview()

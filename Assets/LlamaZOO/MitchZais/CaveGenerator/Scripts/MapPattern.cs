@@ -57,7 +57,7 @@ namespace LlamaZOO.MitchZais.CaveGenerator
             ConnectRoomsToClosestRoom();
             SpawnRoom = Rooms[Random.Range(0, Rooms.Count)];
 
-            var spawnPoints = SpawnRoom.GetCoordsWithFreeSpaceInRadius(this, 1);
+            var spawnPoints = SpawnRoom.GetCoordsWithFreeSpaceInRadius(this, 2);
 
             if(spawnPoints.Length > 0)
             {
