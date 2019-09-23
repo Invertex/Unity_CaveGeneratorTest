@@ -14,7 +14,7 @@ namespace LlamaZOO.MitchZais.CaveGeneratorEditor
         [SerializeField] private Cave cave;
 
         [SerializeField] private SerializedObject preset;
-        [SerializeField] private Editor presetEditor;
+        [SerializeField] private MapPresetSOInspector presetEditor;
 
         /** Map Editor Settings **/
         [SerializeField] private bool genPreviewTextureOnly;
@@ -64,7 +64,7 @@ namespace LlamaZOO.MitchZais.CaveGeneratorEditor
         {
             preset.Update();
             EditorGUI.BeginChangeCheck();
-            presetEditor.OnInspectorGUI();
+            presetEditor.DrawUserEditableInterface();
      
             return EditorGUI.EndChangeCheck();
         }
@@ -175,7 +175,7 @@ namespace LlamaZOO.MitchZais.CaveGeneratorEditor
         private void CreateSerializedProps(MapPresetSO preset)
         {
             this.preset = new SerializedObject(preset);
-            presetEditor = Editor.CreateEditor(preset);
+            presetEditor = Editor.CreateEditor(preset) as MapPresetSOInspector;
         }
 
         private void EnsurePresetExists()

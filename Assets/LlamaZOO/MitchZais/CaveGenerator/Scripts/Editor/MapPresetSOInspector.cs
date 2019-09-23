@@ -13,8 +13,14 @@ namespace LlamaZOO.MitchZais.CaveGeneratorEditor
 
         public override void OnInspectorGUI()
         {
+            DrawUserEditableInterface();
+            DrawMiniMapPreview();
+        }
+
+        public void DrawUserEditableInterface()
+        {
             Undo.RecordObject(MapPreset, "Modified Map Preset");
-            DrawMapParams(MapPreset.MapParams);  
+            DrawMapParams(MapPreset.MapParams);
             DrawMapInfo();
         }
 
@@ -94,6 +100,19 @@ namespace LlamaZOO.MitchZais.CaveGeneratorEditor
             MapPreset.groundMaterial = EditorGUILayout.ObjectField(label: "Ground Material", obj: MapPreset.groundMaterial, objType: typeof(Material), allowSceneObjects: false) as Material;
             MapPreset.wallMaterial = EditorGUILayout.ObjectField(label: "Wall Material", obj: MapPreset.wallMaterial, objType: typeof(Material), allowSceneObjects: false) as Material;
             MapPreset.capMaterial = EditorGUILayout.ObjectField(label: "Cap Material", obj: MapPreset.capMaterial, objType: typeof(Material), allowSceneObjects: false) as Material;
+        }
+
+        private void DrawMiniMapPreview()
+        {
+            
+
+            EditorGUILayout.LabelField("", MapEditorGUIStyles.ThinLineHorizontal);
+            EditorGUILayout.LabelField(".:Minimap Preview:.", MapEditorGUIStyles.LabelUpperCenter);
+           if (MapPreset.minimap == null) { return; }
+
+            Rect drawArea = GUILayoutUtility.GetRect(32, 600, 32, 600);
+            EditorGUI.DrawPreviewTexture(drawArea, MapPreset.minimap, null, ScaleMode.ScaleToFit);
+            EditorGUILayout.Space();
         }
     }
 }
